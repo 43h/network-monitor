@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/getlantern/systray"
 	"time"
+
+	"github.com/getlantern/systray"
 )
 
 var status = 1
@@ -29,7 +30,6 @@ func onReady() {
 		}
 
 		for {
-
 			time.Sleep(1 * time.Second)
 			t := time.Now()
 			sec := time.Now().Second()
@@ -39,28 +39,31 @@ func onReady() {
 			} else if status == 0 {
 				systray.SetTooltip(str + "\nDisabled")
 			} else {
-				flag := false
-				if sec%10 == 0 {
-					flag = true
-				}
-				stat := 0
-				for _, elem := range ips {
-					if flag {
-						elem.pingIP()
-						if elem.avgRtt != -1 {
-							stat++
+				if sec%20 == 0 {
+					go func() {
+						for i := 0; i < total; i++ {
+							ips[i].pingIP()
 						}
-					}
-					str += fmt.Sprintf("\n%s: %dms", elem.ipv4.String(), elem.avgRtt)
+					}()
+
 				}
-				if flag {
-					if stat == total {
-						systray.SetIcon(picok)
+				down := 0
+				up := 0
+				for i := 0; i < total; i++ {
+					if ips[i].avgRtt == -1 {
+						down += 1
 					} else {
-						systray.SetIcon(picnok)
+						up += 1
 					}
-					systray.SetTooltip(str)
 				}
+				str += fmt.Sprintf("\nUp %d\nDown %d", up, down)
+
+				if up == total {
+					systray.SetIcon(picok)
+				} else {
+					systray.SetIcon(picnok)
+				}
+				systray.SetTooltip(str)
 			}
 		}
 	}()
@@ -71,15 +74,17 @@ func onReady() {
 		systray.SetTitle("Awesome App")
 		systray.SetTooltip("Working...")
 
+		mMainwin := systray.AddMenuItem("MainWin", "MainWin")
 		mEnabled := systray.AddMenuItem("Enabled", "Enabled")
 		mDisabled := systray.AddMenuItem("Disabled", "Disabled")
-		systray.AddMenuItem("Version:2024-02-19", "Ignored")
-		mQuit := systray.AddMenuItem("Quit", "Quit the whole app")
-
+		systray.AddMenuItem("Version:2024-02-20", "Ignored")
 		systray.AddSeparator()
+		mQuit := systray.AddMenuItem("Quit", "Quit the whole app")
 
 		for {
 			select {
+			case <-mMainwin.ClickedCh:
+				go winmain()
 			case <-mEnabled.ClickedCh:
 				status = 1
 			case <-mDisabled.ClickedCh:
